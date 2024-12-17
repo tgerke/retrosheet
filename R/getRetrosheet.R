@@ -141,6 +141,9 @@ getRetrosheet <- function(type, year, team, schedSplit = NULL, stringsAsFactors 
 
     # function for single game parsing
     doGame <- function(x) {
+        # add log line number to recover ordering of events
+        x <- paste0(x, paste0(",", 1:length(x)))
+
         sc <- scan(text = x, sep = ",", what = "", flush = TRUE, quiet = TRUE)
         outer <- retrosheetFields$eventOuter
         v <- vector("list", 8L)
@@ -149,13 +152,20 @@ getRetrosheet <- function(type, year, team, schedSplit = NULL, stringsAsFactors 
             v[[i]] <- sx[match(sc, outer) == i]
         }
         names(v) <- outer
+        # no need for log line numbers on `id` and `version` fields
+        v[1:2] <- lapply(v[1:2], \(x) stri_split_fixed(x, ",", simplify = TRUE)[1])
         v[-c(1:2, 6L)] <- lapply(v[-c(1:2, 6L)], stri_split_fixed, ",", simplify = TRUE)
 
+        # add loglineNum to appropriate col names
+        field_names <- retrosheetFields$eventInner
+        field_names[3:8] <- lapply(retrosheetFields$eventInner[-c(1:2)], \(x) c(x, "loglineNum"))
+        field_names[[6]] <- c("comment", field_names[[6]])
+
         ans <- Map(function(A, B) {
-            if (NCOL(A) == length(B) | is.null(dim(A))) {
+            if (NCOL(A) == length(B)) {
                 colnames(A) <- B; A
-            } else { NULL }
-        },  A = v, B = retrosheetFields$eventInner)
+            } else { A }
+        },  A = v, B = field_names)
         ans
     }
 
